@@ -16,8 +16,7 @@ var field_size: Vector2 = Vector2(920.0, 620.0)
 const TARGET_RADIUS: float = 34.0
 const GRAZE_RADIUS: float = 54.0
 const HOVER_RADIUS: float = 128.0
-const HIT_RANGE_OUTER_RADIUS: float = 46.0
-const HIT_RANGE_INNER_RADIUS: float = 18.0
+const NOTE_HITBOX_RADIUS: float = 22.0
 const NOTE_BASE_TRAVEL_SPEED: float = 320.0
 const NOTE_BASE_TURN_RATE: float = 8.0
 const MIN_SPAWN_GAP_MS: int = 500
@@ -183,18 +182,14 @@ func _update_particles(song_pos_ms: float) -> void:
 		var dist := note.position.distance_to(target_pos)
 		var signed_delta := note.hit_time_ms - song_pos_ms
 
-		# Notes are hittable anywhere inside this range band around their target.
-		var in_hit_range := dist <= HIT_RANGE_OUTER_RADIUS and dist >= HIT_RANGE_INNER_RADIUS
-		if in_hit_range and _target_active[note.target_id]:
-			note.hit = true
-			note_hit.emit(note.target_id, signed_delta)
-			to_remove.append(note)
-			continue
-
-		# If the note passes through the whole hit range without activation, it misses.
-		if dist < HIT_RANGE_INNER_RADIUS:
-			note.missed = true
-			note_missed.emit(note.target_id)
+		# All notes resolve against one shared hitbox size, centered on their own target node.
+		if dist <= NOTE_HITBOX_RADIUS:
+			if _target_active[note.target_id]:
+				note.hit = true
+				note_hit.emit(note.target_id, signed_delta)
+			else:
+				note.missed = true
+				note_missed.emit(note.target_id)
 			to_remove.append(note)
 			continue
 
@@ -264,11 +259,9 @@ func _draw() -> void:
 		elif i == 3:
 			core_color = Color(0.86, 0.68, 0.98, 0.42)
 
-			if _target_active[i]:
-				core_color = Color(core_color.r, core_color.g, core_color.b, 0.85)
+		if _target_active[i]:
+			core_color = Color(core_color.r, core_color.g, core_color.b, 0.85)
 
-			draw_circle(_target_centers[i], GRAZE_RADIUS, Color(core_color.r, core_color.g, core_color.b, 0.12))
-			draw_circle(_target_centers[i], TARGET_RADIUS, core_color)
-			draw_arc(_target_centers[i], TARGET_RADIUS + 6.0, 0.0, TAU, 48, Color(0.95, 0.98, 1.0, 0.9), 2.0)
-			draw_arc(_target_centers[i], HIT_RANGE_OUTER_RADIUS, 0.0, TAU, 48, Color(0.96, 0.98, 1.0, 0.70), 1.6)
-			draw_arc(_target_centers[i], HIT_RANGE_INNER_RADIUS, 0.0, TAU, 48, Color(0.96, 0.98, 1.0, 0.55), 1.2)
+		draw_circle(_target_centers[i], GRAZE_RADIUS, Color(core_color.r, core_color.g, core_color.b, 0.12))
+		draw_circle(_target_centers[i], TARGET_RADIUS, core_color)
+		draw_arc(_target_centers[i], TARGET_RADIUS + 6.0, 0.0, TAU, 48, Color(0.95, 0.98, 1.0, 0.9), 2.0)
