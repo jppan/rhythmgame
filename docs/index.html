@@ -88,6 +88,12 @@
         <p>Latest macOS app bundle ZIP from the same release pipeline.</p>
         <a id="mac-link" class="btn secondary" href="#">Download macOS Build</a>
       </article>
+
+      <article class="card">
+        <h2>Bundled Map</h2>
+        <p>Prepackaged easiest 4K chart from Triodust - Speicher Galerie.</p>
+        <a id="map-link" class="btn" href="#">Download Speicher Galerie (BG)</a>
+      </article>
     </section>
 
     <section class="card">
@@ -142,12 +148,14 @@
       if (!owner || !repo) {
         document.getElementById('win-link').setAttribute('href', '#');
         document.getElementById('mac-link').setAttribute('href', '#');
+        document.getElementById('map-link').setAttribute('href', '#');
         return;
       }
 
       var base = 'https://github.com/' + owner + '/' + repo + '/releases/latest/download';
       document.getElementById('win-link').setAttribute('href', base + '/rhythmgame-windows.zip');
       document.getElementById('mac-link').setAttribute('href', base + '/rhythmgame-macos.zip');
+      document.getElementById('map-link').setAttribute('href', base + '/speicher-galerie-easiest-4k.osz');
     })();
   </script>
 </body>

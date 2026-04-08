@@ -13,15 +13,15 @@ var hit_line_y: float = 560.0   ## retained for Main compatibility
 var scroll_speed: float = 0.55  ## used as speed multiplier
 
 var field_size: Vector2 = Vector2(920.0, 620.0)
-const SPAWN_LOOKAHEAD_MS: float = 2300.0
 const TARGET_RADIUS: float = 34.0
 const GRAZE_RADIUS: float = 54.0
 const HOVER_RADIUS: float = 128.0
 const NOTE_HITBOX_RADIUS: float = 22.0
-const SHOW_DEBUG_HITBOX: bool = true
 const NOTE_BASE_TRAVEL_SPEED: float = 320.0
 const NOTE_BASE_TURN_RATE: float = 8.0
-const MIN_SPAWN_GAP_MS: int = 1500
+const MIN_SPAWN_GAP_MS: int = 500
+const OFFSCREEN_SPAWN_MARGIN: float = 90.0
+const SPAWN_TRAVEL_FUDGE_MS: int = 70
 
 # ---------------------------------------------------------------------------
 # Signals
@@ -102,8 +102,6 @@ func tick(song_pos_ms: float) -> void:
 func _spawn_pending(song_pos_ms: float) -> void:
 	while _spawn_index < _beatmap.hit_objects.size():
 		var first_obj: Beatmap.HitObject = _beatmap.hit_objects[_spawn_index]
-		if float(first_obj.time_ms) > song_pos_ms + SPAWN_LOOKAHEAD_MS:
-			break
 
 		# Group all notes with the same timestamp, then spawn exactly one random lane.
 		var grouped_time_ms := first_obj.time_ms
@@ -117,36 +115,52 @@ func _spawn_pending(song_pos_ms: float) -> void:
 
 		var chosen_index := randi_range(group_start, group_end - 1)
 		var chosen_obj: Beatmap.HitObject = _beatmap.hit_objects[chosen_index]
-		if chosen_obj.time_ms - _last_spawned_time_ms >= MIN_SPAWN_GAP_MS:
-			_spawn_particle(chosen_obj, song_pos_ms)
-			_last_spawned_time_ms = chosen_obj.time_ms
+
+		# Keep minimum spacing tied to chart timing, not visual overlap.
+		if chosen_obj.time_ms - _last_spawned_time_ms < MIN_SPAWN_GAP_MS:
+			_spawn_index = group_end
+			continue
+
+		var target := clampi(chosen_obj.column, 0, 3)
+		var target_pos := _target_centers[target]
+		var start_pos := _spawn_point_for_obj(chosen_obj, target)
+		var speed := _current_travel_speed()
+		var travel_ms := int(ceil(start_pos.distance_to(target_pos) / maxf(speed, 1.0) * 1000.0)) + SPAWN_TRAVEL_FUDGE_MS
+		var spawn_time_ms := chosen_obj.time_ms - travel_ms
+		if song_pos_ms < float(spawn_time_ms):
+			break
+
+		_spawn_particle(chosen_obj, start_pos, speed)
+		_last_spawned_time_ms = chosen_obj.time_ms
 		_spawn_index = group_end
 
-func _spawn_particle(obj: Beatmap.HitObject, _song_pos_ms: float) -> void:
+func _spawn_particle(obj: Beatmap.HitObject, start_pos: Vector2, speed: float) -> void:
 	var note := Note.new()
 	var target := clampi(obj.column, 0, 3)
-	var start_pos := _random_spawn_point()
 	var target_pos := _target_centers[target]
 	var to_target := target_pos - start_pos
-	var travel_speed := NOTE_BASE_TRAVEL_SPEED * maxf(scroll_speed, 0.10)
-	var initial_vel := to_target.normalized() * travel_speed
+	var initial_vel := to_target.normalized() * speed
 
 	note.setup_particle(start_pos, initial_vel, float(obj.time_ms), target)
 	_notes_node.add_child(note)
 	_active_notes.append(note)
 
-func _random_spawn_point() -> Vector2:
-	var p := _arena_center
-	var attempts := 0
-	while attempts < 20:
-		p = Vector2(
-			randf_range(_arena_rect.position.x + 18.0, _arena_rect.end.x - 18.0),
-			randf_range(_arena_rect.position.y + 18.0, _arena_rect.end.y - 18.0)
-		)
-		if p.distance_to(_arena_center) > minf(field_size.x, field_size.y) * 0.28:
-			return p
-		attempts += 1
-	return p
+func _current_travel_speed() -> float:
+	return NOTE_BASE_TRAVEL_SPEED * maxf(scroll_speed, 0.10)
+
+func _spawn_point_for_obj(obj: Beatmap.HitObject, target: int) -> Vector2:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(obj.time_ms) * 73856093 + (target + 1) * 19349663
+	var side := rng.randi_range(0, 3)
+	match side:
+		0:
+			return Vector2(_arena_rect.position.x - OFFSCREEN_SPAWN_MARGIN, rng.randf_range(_arena_rect.position.y, _arena_rect.end.y))
+		1:
+			return Vector2(_arena_rect.end.x + OFFSCREEN_SPAWN_MARGIN, rng.randf_range(_arena_rect.position.y, _arena_rect.end.y))
+		2:
+			return Vector2(rng.randf_range(_arena_rect.position.x, _arena_rect.end.x), _arena_rect.position.y - OFFSCREEN_SPAWN_MARGIN)
+		_:
+			return Vector2(rng.randf_range(_arena_rect.position.x, _arena_rect.end.x), _arena_rect.end.y + OFFSCREEN_SPAWN_MARGIN)
 
 func _update_particles(song_pos_ms: float) -> void:
 	var to_remove: Array[Note] = []
@@ -162,7 +176,7 @@ func _update_particles(song_pos_ms: float) -> void:
 		var turn_rate := NOTE_BASE_TURN_RATE
 		if _target_active[note.target_id]:
 			turn_rate *= 1.9
-		var travel_speed := NOTE_BASE_TRAVEL_SPEED * maxf(scroll_speed, 0.10)
+		var travel_speed := _current_travel_speed()
 		note.update_motion(delta_s, target_pos, _arena_rect, turn_rate, travel_speed)
 
 		var dist := note.position.distance_to(target_pos)
@@ -251,7 +265,3 @@ func _draw() -> void:
 		draw_circle(_target_centers[i], GRAZE_RADIUS, Color(core_color.r, core_color.g, core_color.b, 0.12))
 		draw_circle(_target_centers[i], TARGET_RADIUS, core_color)
 		draw_arc(_target_centers[i], TARGET_RADIUS + 6.0, 0.0, TAU, 48, Color(0.95, 0.98, 1.0, 0.9), 2.0)
-
-		if SHOW_DEBUG_HITBOX:
-			draw_circle(_target_centers[i], NOTE_HITBOX_RADIUS, Color(1.0, 0.12, 0.12, 0.20))
-			draw_arc(_target_centers[i], NOTE_HITBOX_RADIUS, 0.0, TAU, 40, Color(1.0, 0.18, 0.18, 0.95), 2.0)

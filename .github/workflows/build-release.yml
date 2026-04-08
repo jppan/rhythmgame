@@ -60,10 +60,11 @@ jobs:
           "$GODOT_BIN" --headless --path . --export-release "Windows Desktop" build/windows/rhythmgame.exe
           "$GODOT_BIN" --headless --path . --export-release "macOS" build/macos/rhythmgame-macos.zip
           if [ -f build/windows/rhythmgame.pck ]; then
-            zip -j build/windows/rhythmgame-windows.zip build/windows/rhythmgame.exe build/windows/rhythmgame.pck
+            zip -j build/windows/rhythmgame-windows.zip build/windows/rhythmgame.exe build/windows/rhythmgame.pck release/beatmaps/speicher-galerie-easiest-4k.osz
           else
-            zip -j build/windows/rhythmgame-windows.zip build/windows/rhythmgame.exe
+            zip -j build/windows/rhythmgame-windows.zip build/windows/rhythmgame.exe release/beatmaps/speicher-galerie-easiest-4k.osz
           fi
+          zip -j build/macos/rhythmgame-macos.zip release/beatmaps/speicher-galerie-easiest-4k.osz
           sha256sum build/windows/rhythmgame-windows.zip build/macos/rhythmgame-macos.zip > build/SHA256SUMS.txt
 
       - name: Upload workflow artifacts
@@ -74,6 +75,7 @@ jobs:
             build/windows/rhythmgame-windows.zip
             build/macos/rhythmgame-macos.zip
             build/SHA256SUMS.txt
+            release/beatmaps/speicher-galerie-easiest-4k.osz
 
       - name: Publish latest release assets
         uses: ncipollo/release-action@v1
@@ -87,9 +89,11 @@ jobs:
             build/windows/rhythmgame-windows.zip
             build/macos/rhythmgame-macos.zip
             build/SHA256SUMS.txt
+            release/beatmaps/speicher-galerie-easiest-4k.osz
           body: |
             Automated latest builds for rhythmgame.
 
             - Windows: rhythmgame-windows.zip
             - macOS: rhythmgame-macos.zip
             - Checksums: SHA256SUMS.txt
+            - Bundled beatmap (easiest 4K): speicher-galerie-easiest-4k.osz

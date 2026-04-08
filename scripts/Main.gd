@@ -11,7 +11,7 @@ const LANE_WIDTH: float = 110.0
 const DEFAULT_SCROLL_SPEED: float = 0.55
 const LANE_KEYS: Array[int] = [KEY_F, KEY_T, KEY_H, KEY_G]
 
-const MENU_MUSIC_PATH: String = "/home/jppan/Downloads/Chrome Broth.wav"
+const MENU_MUSIC_PATH: String = "res://assets/audio/Chrome Broth.wav"
 const LIBRARY_SAVE_PATH: String = "user://imported_beatmaps.json"
 
 # ---------------------------------------------------------------------------
@@ -834,6 +834,11 @@ func _reset_score() -> void:
 func _load_audio_stream_from_path(path: String) -> AudioStream:
 	if path.is_empty():
 		return null
+
+	if path.begins_with("res://"):
+		var loaded_res := ResourceLoader.load(path)
+		if loaded_res is AudioStream:
+			return loaded_res as AudioStream
 
 	var ext := path.get_extension().to_lower()
 	match ext:
