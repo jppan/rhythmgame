@@ -5,6 +5,7 @@ Godot-based rhythm game prototype with osu!mania `.osu` / `.osz` import support 
 ## Downloads
 
 - GitHub Pages build portal: `https://<your-user>.github.io/<repo>/`
+- GitHub Pages web build: `https://<your-user>.github.io/<repo>/web/`
 - Compatible 4K map search:
   - https://osu.ppy.sh/beatmapsets?m=3&q=keys%3D4%20stars%3D1&s=any
 - Bundled easiest 4K map release asset:
