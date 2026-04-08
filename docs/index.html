@@ -101,6 +101,30 @@
       <p class="tiny">Link: <code>https://osu.ppy.sh/beatmapsets?m=3&q=keys%3D4%20stars%3D1&s=any</code></p>
     </section>
 
+    <section class="card">
+      <h2>Open a Mac App from an Unknown Developer</h2>
+      <p>
+        If you try to open an app that isn’t registered with Apple by a known developer, you get a warning dialogue.
+        The app has not been reviewed and macOS can’t check whether the app has been modified or broken since it was released.
+      </p>
+      <p>
+        Overriding security settings to open an app is the most common way that a Mac gets infected with malware.
+        You should not override security settings if an app hasn’t been checked by Apple, even if the app looks like it
+        comes from a major developer. The safest approach is to look for a version of the app from the Mac App Store or
+        look for an alternative app.
+      </p>
+      <p>
+        However, if you choose, you can still open an app from an unknown developer by manually overriding Privacy &amp; Security settings.
+      </p>
+      <ol>
+        <li>On your Mac, choose Apple menu &gt; System Settings, then click Privacy &amp; Security in the sidebar. (You may need to scroll down.)</li>
+        <li>Go to Security, then click Open.</li>
+        <li>Click Open Anyway.</li>
+        <li>This button is available for about an hour after you try to open the app.</li>
+        <li>Enter your login password, then click OK.</li>
+      </ol>
+    </section>
+
     <p class="footer">
       The game already contains leaderboard infrastructure via <code>scripts/LeaderboardService.gd</code>
       and menu panel integration in <code>scripts/Main.gd</code>, so backend endpoints can be connected
