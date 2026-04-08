@@ -96,9 +96,10 @@
       </article>
 
       <article class="card">
-        <h2>Bundled Map</h2>
-        <p>Prepackaged easiest 4K chart from Triodust - Speicher Galerie.</p>
-        <a id="map-link" class="btn" href="#">Download Speicher Galerie (BG)</a>
+        <h2>Bundled Maps</h2>
+        <p>Prepackaged easiest 4K charts. These are also auto-imported in the Web build.</p>
+        <a id="map1-link" class="btn" href="#">Download Speicher Galerie (BG)</a>
+        <a id="map2-link" class="btn secondary" href="#">Download what's done is done (Lott's Normal)</a>
       </article>
     </section>
 
@@ -154,14 +155,16 @@
       if (!owner || !repo) {
         document.getElementById('win-link').setAttribute('href', '#');
         document.getElementById('mac-link').setAttribute('href', '#');
-        document.getElementById('map-link').setAttribute('href', '#');
+        document.getElementById('map1-link').setAttribute('href', '#');
+        document.getElementById('map2-link').setAttribute('href', '#');
         return;
       }
 
       var base = 'https://github.com/' + owner + '/' + repo + '/releases/download/latest';
       document.getElementById('win-link').setAttribute('href', base + '/rhythmgame-windows.zip');
       document.getElementById('mac-link').setAttribute('href', base + '/rhythmgame-macos.zip');
-      document.getElementById('map-link').setAttribute('href', base + '/speicher-galerie-easiest-4k.osz');
+      document.getElementById('map1-link').setAttribute('href', base + '/speicher-galerie-easiest-4k.osz');
+      document.getElementById('map2-link').setAttribute('href', base + '/whats-done-is-done-easiest-4k.osz');
     })();
   </script>
 </body>

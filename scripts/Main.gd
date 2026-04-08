@@ -14,6 +14,10 @@ const LANE_KEYS: Array[int] = [KEY_F, KEY_T, KEY_H, KEY_G]
 const MENU_MUSIC_PATH: String = "res://assets/audio/Chrome Broth.wav"
 const LIBRARY_SAVE_PATH: String = "user://imported_beatmaps.json"
 const WEB_IMPORT_DIR: String = "user://web_imports"
+const WEB_BUNDLED_OSZ_PATHS: Array[String] = [
+	"res://release/beatmaps/speicher-galerie-easiest-4k.osz",
+	"res://release/beatmaps/whats-done-is-done-easiest-4k.osz",
+]
 
 # ---------------------------------------------------------------------------
 # Game systems
@@ -80,8 +84,9 @@ func _ready() -> void:
 	_build_scene()
 	_setup_web_import_bridge()
 	_load_library_from_disk()
+	_ensure_web_bundled_maps_imported()
 	if OS.has_feature("web"):
-		_set_menu_status("Import an osu!mania .osu/.osz (4K only). Saved charts appear in the right-side library.\nWeb: click Import to pick local files, or drag and drop files onto the page.")
+		_set_menu_status("Import an osu!mania .osu/.osz (4K only). Saved charts appear in the right-side library.\nWeb: two bundled maps are auto-imported. Click Import for local files or drag and drop onto the page.")
 	else:
 		_set_menu_status("Import an osu!mania .osu/.osz (4K only). Saved charts appear in the right-side library.")
 	_update_menu_map_label()
@@ -496,6 +501,20 @@ func _save_library_to_disk() -> void:
 		push_warning("Failed to save beatmap library: %s" % LIBRARY_SAVE_PATH)
 		return
 	file.store_string(JSON.stringify(_library_entries))
+
+func _ensure_web_bundled_maps_imported() -> void:
+	if not OS.has_feature("web"):
+		return
+
+	for bundled_path in WEB_BUNDLED_OSZ_PATHS:
+		if not FileAccess.file_exists(bundled_path):
+			push_warning("Bundled web map missing: %s" % bundled_path)
+			continue
+		var maps := Beatmap.load_all_4k_mania_from_osz_file(bundled_path)
+		if maps.is_empty():
+			push_warning("Bundled web map failed to load: %s" % bundled_path)
+			continue
+		_add_maps_to_library(maps, "osz", bundled_path)
 
 func _add_maps_to_library(maps: Array[Beatmap], source_type: String, source_path: String) -> void:
 	if source_path.is_empty():

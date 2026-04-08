@@ -10,6 +10,7 @@ Godot-based rhythm game prototype with osu!mania `.osu` / `.osz` import support 
   - https://osu.ppy.sh/beatmapsets?m=3&q=keys%3D4%20stars%3D1&s=any
 - Bundled easiest 4K map release asset:
   - `speicher-galerie-easiest-4k.osz`
+  - `whats-done-is-done-easiest-4k.osz`
 
 ## Build/Release Pipeline
 
