@@ -13,6 +13,7 @@ const LANE_KEYS: Array[int] = [KEY_F, KEY_T, KEY_H, KEY_G]
 
 const MENU_MUSIC_PATH: String = "res://assets/audio/Chrome Broth.wav"
 const LIBRARY_SAVE_PATH: String = "user://imported_beatmaps.json"
+const WEB_IMPORT_DIR: String = "user://web_imports"
 
 # ---------------------------------------------------------------------------
 # Game systems
@@ -66,6 +67,8 @@ var _user_audio_offset_ms: float = 0.0
 var _user_scroll_speed: float = DEFAULT_SCROLL_SPEED
 var _user_mouse_sensitivity: float = 1.0
 var _recovery_until_ms: float = 0.0
+var _web_import_callback: Variant = null
+var _web_bridge_ready: bool = false
 
 var _judge_display_secs: float = 0.0
 const JUDGE_SHOW_DURATION: float = 0.55
@@ -75,8 +78,12 @@ const JUDGE_SHOW_DURATION: float = 0.55
 # ---------------------------------------------------------------------------
 func _ready() -> void:
 	_build_scene()
+	_setup_web_import_bridge()
 	_load_library_from_disk()
-	_set_menu_status("Import an osu!mania .osu/.osz (4K only). Saved charts appear in the right-side library.")
+	if OS.has_feature("web"):
+		_set_menu_status("Import an osu!mania .osu/.osz (4K only). Saved charts appear in the right-side library.\nWeb: click Import to pick local files, or drag and drop files onto the page.")
+	else:
+		_set_menu_status("Import an osu!mania .osu/.osz (4K only). Saved charts appear in the right-side library.")
 	_update_menu_map_label()
 	_enter_menu()
 	_start_menu_music()
@@ -611,7 +618,138 @@ func _find_map_index_from_entry(maps: Array[Beatmap], entry: Dictionary) -> int:
 	return -1
 
 func _on_import_pressed() -> void:
+	if OS.has_feature("web"):
+		_open_web_import_picker()
+		return
 	_file_dialog.popup_centered_ratio(0.82)
+
+func _setup_web_import_bridge() -> void:
+	if not OS.has_feature("web"):
+		return
+
+	_web_import_callback = JavaScriptBridge.create_callback(_on_web_file_from_browser)
+	var window := JavaScriptBridge.get_interface("window")
+	if window == null:
+		return
+
+	window.godotRhythmImportCallback = _web_import_callback
+	JavaScriptBridge.eval("""
+		(function () {
+			if (!window.godotRhythmImportCallback || window.__rhythmgameWebImportReady) {
+				return;
+			}
+			window.__rhythmgameWebImportReady = true;
+
+			const sendFile = async (file) => {
+				if (!file) return;
+				const name = String(file.name || "");
+				const lower = name.toLowerCase();
+				if (!(lower.endsWith(".osu") || lower.endsWith(".osz"))) {
+					return;
+				}
+				const buffer = await file.arrayBuffer();
+				const bytes = new Uint8Array(buffer);
+				let binary = "";
+				const chunk = 0x8000;
+				for (let i = 0; i < bytes.length; i += chunk) {
+					binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+				}
+				const b64 = btoa(binary);
+				window.godotRhythmImportCallback(name, b64);
+			};
+
+			const sendAll = async (fileList) => {
+				for (const file of fileList) {
+					await sendFile(file);
+				}
+			};
+
+			window.rhythmgameOpenImportPicker = () => {
+				const input = document.createElement("input");
+				input.type = "file";
+				input.accept = ".osu,.osz";
+				input.multiple = true;
+				input.onchange = () => {
+					if (input.files && input.files.length > 0) {
+						sendAll(input.files);
+					}
+				};
+				input.click();
+			};
+
+			const prevent = (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+			};
+			window.addEventListener("dragenter", prevent);
+			window.addEventListener("dragover", prevent);
+			window.addEventListener("drop", (e) => {
+				prevent(e);
+				if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+					sendAll(e.dataTransfer.files);
+				}
+			});
+		})();
+	""", true)
+
+	_web_bridge_ready = true
+
+func _open_web_import_picker() -> void:
+	if not _web_bridge_ready:
+		_set_menu_status("Web file picker not initialized yet.")
+		return
+	JavaScriptBridge.eval("""
+		if (window.rhythmgameOpenImportPicker) {
+			window.rhythmgameOpenImportPicker();
+		}
+	""", true)
+
+func _on_web_file_from_browser(args: Array) -> void:
+	if args.size() < 2:
+		return
+
+	var file_name := String(args[0])
+	var b64 := String(args[1])
+	if file_name.is_empty() or b64.is_empty():
+		return
+
+	var ext := file_name.get_extension().to_lower()
+	if ext != "osu" and ext != "osz":
+		return
+
+	var data := Marshalls.base64_to_raw(b64)
+	if data.is_empty():
+		_set_menu_status("Failed to read web file: %s" % file_name)
+		return
+
+	var saved_path := _save_web_import_file(file_name, data)
+	if saved_path.is_empty():
+		_set_menu_status("Failed to store imported file in browser storage:\n%s" % file_name)
+		return
+
+	_on_map_file_selected(saved_path)
+
+func _save_web_import_file(file_name: String, data: PackedByteArray) -> String:
+	var web_import_abs := ProjectSettings.globalize_path(WEB_IMPORT_DIR)
+	var mk_err := DirAccess.make_dir_recursive_absolute(web_import_abs)
+	if mk_err != OK:
+		return ""
+
+	var safe_name := file_name.get_file()
+	safe_name = safe_name.replace("/", "_")
+	safe_name = safe_name.replace("\\", "_")
+	safe_name = safe_name.replace(":", "_")
+	safe_name = safe_name.replace("..", "_")
+	safe_name = safe_name.strip_edges()
+	if safe_name.is_empty():
+		safe_name = "import.%s" % file_name.get_extension().to_lower()
+
+	var out_path := WEB_IMPORT_DIR.path_join("%d_%s" % [Time.get_ticks_usec(), safe_name])
+	var out_file := FileAccess.open(out_path, FileAccess.WRITE)
+	if out_file == null:
+		return ""
+	out_file.store_buffer(data)
+	return out_path
 
 func _on_map_file_selected(path: String) -> void:
 	var ext := path.get_extension().to_lower()
