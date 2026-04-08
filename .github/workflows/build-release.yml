@@ -1,0 +1,95 @@
+name: Build and Publish Latest
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: "4.6.1"
+      GODOT_RELEASE: "stable"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache export templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_RELEASE }}
+          key: godot-templates-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}
+
+      - name: Download Godot editor
+        run: |
+          set -eux
+          mkdir -p /tmp/godot
+          curl -fL --retry 3 --retry-all-errors \
+            -o /tmp/godot/godot.zip \
+            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64.zip"
+          unzip -o /tmp/godot/godot.zip -d /tmp/godot
+          GODOT_BIN=$(find /tmp/godot -maxdepth 2 -type f -name 'Godot_v*linux.x86_64' | head -n1)
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+
+      - name: Install export templates
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          TEMPL_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_RELEASE}"
+          mkdir -p "$TEMPL_DIR"
+          curl -fL --retry 3 --retry-all-errors \
+            -o /tmp/godot/templates.tpz \
+            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_export_templates.tpz"
+          unzip -o /tmp/godot/templates.tpz -d "$TEMPL_DIR"
+          if [ -d "$TEMPL_DIR/templates" ]; then
+            mv "$TEMPL_DIR"/templates/* "$TEMPL_DIR"/
+            rmdir "$TEMPL_DIR/templates"
+          fi
+
+      - name: Export Windows and macOS builds
+        run: |
+          set -eux
+          mkdir -p build/windows build/macos
+          "$GODOT_BIN" --headless --path . --export-release "Windows Desktop" build/windows/rhythmgame.exe
+          "$GODOT_BIN" --headless --path . --export-release "macOS" build/macos/rhythmgame-macos.zip
+          if [ -f build/windows/rhythmgame.pck ]; then
+            zip -j build/windows/rhythmgame-windows.zip build/windows/rhythmgame.exe build/windows/rhythmgame.pck
+          else
+            zip -j build/windows/rhythmgame-windows.zip build/windows/rhythmgame.exe
+          fi
+          sha256sum build/windows/rhythmgame-windows.zip build/macos/rhythmgame-macos.zip > build/SHA256SUMS.txt
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rhythmgame-builds
+          path: |
+            build/windows/rhythmgame-windows.zip
+            build/macos/rhythmgame-macos.zip
+            build/SHA256SUMS.txt
+
+      - name: Publish latest release assets
+        uses: ncipollo/release-action@v1
+        with:
+          tag: latest
+          name: Latest Builds
+          allowUpdates: true
+          replacesArtifacts: true
+          prerelease: true
+          artifacts: |
+            build/windows/rhythmgame-windows.zip
+            build/macos/rhythmgame-macos.zip
+            build/SHA256SUMS.txt
+          body: |
+            Automated latest builds for rhythmgame.
+
+            - Windows: rhythmgame-windows.zip
+            - macOS: rhythmgame-macos.zip
+            - Checksums: SHA256SUMS.txt

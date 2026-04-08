@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>rhythmgame Builds</title>
+  <style>
+    :root {
+      --bg: #0f1720;
+      --card: #14202c;
+      --muted: #8ea6bb;
+      --text: #e8f0f7;
+      --accent: #23c1a8;
+      --accent-2: #4aa3ff;
+      --border: #2a3b4f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 700px at 15% 0%, #183144 0%, var(--bg) 42%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 40px 20px 70px;
+    }
+    h1 { margin: 0 0 8px; font-size: 44px; letter-spacing: 0.5px; }
+    .sub { margin: 0 0 28px; color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .card {
+      background: linear-gradient(180deg, #172635, var(--card));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .card h2 { margin: 0 0 12px; font-size: 22px; }
+    .btn {
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 10px;
+      color: #031318;
+      background: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+      margin-top: 8px;
+    }
+    .btn.secondary {
+      background: var(--accent-2);
+      color: #061226;
+    }
+    .tiny { color: var(--muted); font-size: 14px; margin-top: 10px; }
+    .footer {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    code {
+      background: #0e1a25;
+      border: 1px solid #26394b;
+      border-radius: 6px;
+      padding: 1px 6px;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>rhythmgame</h1>
+    <p class="sub">Latest playable builds, 4K map source, and leaderboard-ready project scaffold.</p>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Windows</h2>
+        <p>Latest ZIP build from the repository's <code>latest</code> release tag.</p>
+        <a id="win-link" class="btn" href="#">Download Windows Build</a>
+      </article>
+
+      <article class="card">
+        <h2>macOS</h2>
+        <p>Latest macOS app bundle ZIP from the same release pipeline.</p>
+        <a id="mac-link" class="btn secondary" href="#">Download macOS Build</a>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>Download Compatible Maps</h2>
+      <p>
+        Use this osu!mania 4K filtered page to find maps that import in this game:
+      </p>
+      <a class="btn" href="https://osu.ppy.sh/beatmapsets?m=3&q=keys%3D4%20stars%3D1&s=any" target="_blank" rel="noopener noreferrer">
+        Open 4K Map Search
+      </a>
+      <p class="tiny">Link: <code>https://osu.ppy.sh/beatmapsets?m=3&q=keys%3D4%20stars%3D1&s=any</code></p>
+    </section>
+
+    <p class="footer">
+      The game already contains leaderboard infrastructure via <code>scripts/LeaderboardService.gd</code>
+      and menu panel integration in <code>scripts/Main.gd</code>, so backend endpoints can be connected
+      without redesigning the menu or gameplay flow.
+    </p>
+  </main>
+
+  <script>
+    (function () {
+      var host = window.location.hostname;
+      var pathParts = window.location.pathname.split('/').filter(Boolean);
+      var owner = host.endsWith('.github.io') ? host.replace('.github.io', '') : '';
+      var repo = pathParts.length > 0 ? pathParts[0] : '';
+
+      if (!owner || !repo) {
+        document.getElementById('win-link').setAttribute('href', '#');
+        document.getElementById('mac-link').setAttribute('href', '#');
+        return;
+      }
+
+      var base = 'https://github.com/' + owner + '/' + repo + '/releases/latest/download';
+      document.getElementById('win-link').setAttribute('href', base + '/rhythmgame-windows.zip');
+      document.getElementById('mac-link').setAttribute('href', base + '/rhythmgame-macos.zip');
+    })();
+  </script>
+</body>
+</html>
