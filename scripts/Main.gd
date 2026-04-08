@@ -664,6 +664,22 @@ func _setup_web_import_bridge() -> void:
 				}
 			};
 
+			const handleDrop = (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+					sendAll(e.dataTransfer.files);
+				}
+			};
+
+			const handleDrag = (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				if (e.dataTransfer) {
+					e.dataTransfer.dropEffect = "copy";
+				}
+			};
+
 			window.rhythmgameOpenImportPicker = () => {
 				const input = document.createElement("input");
 				input.type = "file";
@@ -677,17 +693,18 @@ func _setup_web_import_bridge() -> void:
 				input.click();
 			};
 
-			const prevent = (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-			};
-			window.addEventListener("dragenter", prevent);
-			window.addEventListener("dragover", prevent);
-			window.addEventListener("drop", (e) => {
-				prevent(e);
-				if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-					sendAll(e.dataTransfer.files);
-				}
+			const targets = [
+				window,
+				document,
+				document.documentElement,
+				document.body,
+				document.getElementById("canvas")
+			];
+			targets.forEach((target) => {
+				if (!target) return;
+				target.addEventListener("dragenter", handleDrag, true);
+				target.addEventListener("dragover", handleDrag, true);
+				target.addEventListener("drop", handleDrop, true);
 			});
 		})();
 	""", true)
@@ -705,11 +722,15 @@ func _open_web_import_picker() -> void:
 	""", true)
 
 func _on_web_file_from_browser(args: Array) -> void:
-	if args.size() < 2:
+	var payload := args
+	if args.size() == 1 and args[0] is Array:
+		payload = args[0]
+
+	if payload.size() < 2:
 		return
 
-	var file_name := String(args[0])
-	var b64 := String(args[1])
+	var file_name := String(payload[0])
+	var b64 := String(payload[1])
 	if file_name.is_empty() or b64.is_empty():
 		return
 
@@ -730,9 +751,11 @@ func _on_web_file_from_browser(args: Array) -> void:
 	_on_map_file_selected(saved_path)
 
 func _save_web_import_file(file_name: String, data: PackedByteArray) -> String:
-	var web_import_abs := ProjectSettings.globalize_path(WEB_IMPORT_DIR)
-	var mk_err := DirAccess.make_dir_recursive_absolute(web_import_abs)
-	if mk_err != OK:
+	var user_dir := DirAccess.open("user://")
+	if user_dir == null:
+		return ""
+	var mk_err := user_dir.make_dir_recursive("web_imports")
+	if mk_err != OK and mk_err != ERR_ALREADY_EXISTS:
 		return ""
 
 	var safe_name := file_name.get_file()
@@ -749,6 +772,8 @@ func _save_web_import_file(file_name: String, data: PackedByteArray) -> String:
 	if out_file == null:
 		return ""
 	out_file.store_buffer(data)
+	if OS.has_feature("web"):
+		JavaScriptBridge.force_fs_sync()
 	return out_path
 
 func _on_map_file_selected(path: String) -> void:
